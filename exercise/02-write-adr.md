@@ -35,10 +35,10 @@ language: Thai
 
 | เกณฑ์ | Run a | Run b |
 |---|---|---|
-| ใช้ตัวเลขจาก scenario หรือไม่ (latency, ช่วงพีก, ข้อจำกัดของ MailFast) | | |
-| ทางเลือกที่พิจารณา (ระบุ) | | |
-| จัดการแต้มสะสมแบบ "ครั้งเดียวเท่านั้น" และ rate limit ของ MailFast หรือไม่ อย่างไร | | |
-| มีสิ่งที่แต่งขึ้นเองหรือไม่ (ตัวเลข เครื่องมือ หรือข้อเท็จจริงที่ไม่มีใน scenario) | | |
+| ใช้ตัวเลขจาก scenario หรือไม่ (latency, ช่วงพีก, ข้อจำกัดของ MailFast) | ไม่ใช้เลย เพราะไม่ได้อ่าน scenario ตัวเลขที่ต้องใช้ไปอยู่ใน Open questions | ใช้ครบ: p95 ≤ 500 ms (ปัจจุบัน ~300 ms), 200 orders/s, MailFast p95 1.5 s / p99 8 s / ล้มเหลว 0.5% / 50 อีเมล/s, แต้มภายใน 1 นาที และคำนวณต่อ เช่น backlog อีเมล 9,000 ฉบับต่อนาทีของ peak |
+| ทางเลือกที่พิจารณา (ระบุ) | 3 ทาง: A sync RPC, B pub/sub ผ่าน broker (เลือก), C orchestrator | 4 ทาง: sync gRPC, async ใน process, RabbitMQ pub/sub (เลือก), Kafka; ตัด managed cloud ออกตั้งแต่ต้นตาม scenario |
+| จัดการแต้มสะสมแบบ "ครั้งเดียวเท่านั้น" และ rate limit ของ MailFast หรือไม่ อย่างไร | แต้ม: idempotent ด้วย `order_id` + unique constraint; rate limit: พูดแค่ใน Risks (retry, backoff, circuit breaker) ไม่มีตัวเลข | แต้ม: at-least-once + idempotent consumer (บันทึก `order_id` และให้แต้มใน transaction เดียว commit ก่อน ack) และมี queue แยกจึงไม่ติด backlog อีเมล; rate limit: consumer จำกัดรวมทุก replica ≤ 50/s และให้ queue พัก backlog ช่วง peak |
+| มีสิ่งที่แต่งขึ้นเองหรือไม่ (ตัวเลข เครื่องมือ หรือข้อเท็จจริงที่ไม่มีใน scenario) | ไม่แต่งตัวเลข แต่มีข้อเสนอที่ขัดกับ scenario ซึ่ง run a ไม่ได้เห็น: ยก Google Cloud Pub/Sub เป็นตัวเลือก และแก้ความเสี่ยงเรื่องทีมไม่มีประสบการณ์ด้วย broker แบบ managed (scenario ให้ใช้ self-hosted และบอกว่า 2 คนเคยใช้ RabbitMQ) | ไม่พบตัวเลขที่แต่งขึ้น ตัวเลขมาจาก scenario หรือคำนวณต่อ; มีค่าที่ agent เลือกเอง เช่น RabbitMQ 3 nodes, ชื่อ queue/exchange และ ~75 คำขอพร้อมกัน (ติด [Inferred]); Locust `loadgenerator` มาจาก ADR-0001 (L49) ไม่ได้แต่ง |
 
 ## รับผิดชอบ ADR ฉบับสุดท้ายของตัวเอง
 
@@ -51,6 +51,7 @@ language: Thai
 
 | # | สิ่งที่เปลี่ยนจากร่างของ AI | เหตุผล |
 |---|---|---|
-| 1 | | |
-| 2 | | |
-| 3 | | |
+| 1 | บรรทัดแรก: เปลี่ยน "เขียนโดย agent" เป็น "ร่างโดย agent ... แก้ไขและรับรองโดย <ชื่อ>" | ให้ชัดว่า agent เป็นผู้ร่าง ส่วนผู้แก้ไขและรับผิดชอบ ADR ฉบับสุดท้ายคือ Thanwarat |
+| 2 | ตอบ Open question ข้อ 10 เรื่องผู้ดูแล: ให้ 2 คนที่เคยใช้ RabbitMQ เป็นผู้ดูแลและ on-call ของ broker (เพิ่มในหัวข้อ Decision) | ทีมมี 4 คน และมีแค่ 2 คนที่เคยใช้ RabbitMQ จึงเหมาะเป็นเจ้าของระบบใหม่ |
+| 3 | ย้าย Open question ข้อ 8 ไปไว้ใน Risks and mitigations | การ retry `PlaceOrder` แล้วได้ `order_id` ใหม่ ทำให้ตัดเงินและให้แต้มซ้ำ |
+
