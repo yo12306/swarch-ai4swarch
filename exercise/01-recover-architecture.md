@@ -38,15 +38,22 @@ evidence: system/online-boutique/protos/demo.proto, system/online-boutique/kuber
 
 | ผู้เรียก → ผู้ถูกเรียก | หลักฐานที่ AI อ้าง | ยืนยันแล้วหรือไม่ ✅ / ❌ / ❓ | สิ่งที่นิสิตพบ |
 |---|---|---|---|
-| | | | |
-| | | | |
-| | | | |
-| | | | |
-| | | | |
+| `checkoutservice` → `productcatalogservice` | `checkoutservice.yaml` · `PRODUCT_CATALOG_SERVICE_ADDR` (L57–58) | ✅ | yaml L57–58 ตรงตามที่ AI อ้าง (`productcatalogservice:3550`); `main.go` L112 อ่านค่า, L119 เชื่อมต่อ gRPC, L341 สร้าง `ProductCatalogServiceClient`, L344 เรียก `GetProduct` |
+| `checkoutservice` → `shippingservice` | `checkoutservice.yaml` · `SHIPPING_SERVICE_ADDR` (L59–60) | ✅ | yaml L59–60 ตรง (`shippingservice:50051`); `main.go` L111 อ่านค่า, L118 เชื่อมต่อ gRPC, L314–315 เรียก `GetQuote`, L387 เรียก `ShipOrder` |
+| `checkoutservice` → `paymentservice` | `checkoutservice.yaml` · `PAYMENT_SERVICE_ADDR` (L61–62) | ✅ | yaml L61–62 ตรง (`paymentservice:50051`); `main.go` L116 อ่านค่า, L123 เชื่อมต่อ gRPC, L370 เรียก `Charge` |
+| `checkoutservice` → `emailservice` | `checkoutservice.yaml` · `EMAIL_SERVICE_ADDR` (L63–64) | ✅ | yaml L63–64 ตรง (`emailservice:5000`); `main.go` L115 อ่านค่า, L122 เชื่อมต่อ gRPC, L380 เรียก `SendOrderConfirmation` |
+| `checkoutservice` → `currencyservice` | `checkoutservice.yaml` · `CURRENCY_SERVICE_ADDR` (L65–66) | ✅ | yaml L65–66 ตรง (`currencyservice:7000`); `main.go` L114 อ่านค่า, L121 เชื่อมต่อ gRPC, L360 เรียก `Convert` |
+| `checkoutservice` → `cartservice` | `checkoutservice.yaml` · `CART_SERVICE_ADDR` (L67–68) | ✅ | yaml L67–68 ตรง (`cartservice:7070`); `main.go` L113 อ่านค่า, L120 เชื่อมต่อ gRPC, L325 เรียก `GetCart`, L333 เรียก `EmptyCart` |
 
-- **สิ่งที่ผิดหรือขาดหายไป** ใน Run B (dependency ที่ไม่มีจริง, dependency ที่ขาดไป, container ที่น่าสงสัย): …
+- **สิ่งที่ผิดหรือขาดหายไป** ใน Run B (dependency ที่ไม่มีจริง, dependency ที่ขาดไป, container ที่น่าสงสัย): 
+  - dependency ที่ไม่มีจริง: ไม่พบใน 6 แถวของ checkout ที่ตรวจ (✅ ทั้งหมด)
+  - dependency ที่ขาดไป: ไม่มีในค่าตั้งปัจจุบัน แต่แผนภาพไม่แสดง 2 ตัวที่ทำงานเมื่อเปิดใช้เท่านั้น: OpenTelemetry collector (`ENABLE_TRACING=1`) และ Google Cloud Profiler (`ENABLE_PROFILER=1`) AI มองไม่เห็นเพราะไม่มี `main.go`
+  - container ที่น่าสงสัย: `loadgenerator` เป็นเครื่องมือทดสอบที่ถูก comment ออกจาก `kustomization.yaml` ไม่ใช่ส่วนของระบบจริง แต่ AI ใส่ไว้ในแผนภาพ ควรตัดออก; `shoppingassistantservice` AI ทำถูกแล้วที่ไม่ใส่ในแผนภาพ (ไม่มี manifest และ component ถูก comment ไว้)
+
 
 ## สะท้อนคิด (ข้อละ 2–3 ประโยค)
 
 1. เปรียบเทียบ A กับ B: agent **ไม่สามารถ**รู้อะไรได้จากไฟล์ `.proto` เพียงไฟล์เดียว และเพราะเหตุใด
+  **ตอบ:**สิ่งที่ A ไม่รู้: ใครเรียกใคร, frontend ที่เป็นทางเข้า, redis-cart, port
 2. ข้อผิดพลาด**ข้อใดข้อหนึ่ง**ที่จะทำให้สมาชิกใหม่ของทีมเข้าใจผิดมากที่สุด หากเผยแพร่แผนภาพนี้โดยไม่ตรวจสอบ
+  **ตอบ:**loadgenerator อยู่ในแผนภาพ ทำให้คิดว่าเป็นส่วนหนึ่งของระบบจริงที่ส่ง traffic เข้า frontend
